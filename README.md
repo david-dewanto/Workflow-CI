@@ -1,6 +1,6 @@
 # Workflow-CI
 
-Repository for Kriteria 3: MLflow Project with CI/CD Pipeline
+Repository for MLflow Project with CI/CD Pipeline
 
 ## Overview
 
