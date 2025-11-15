@@ -57,7 +57,6 @@ jobs:
 
       - name: Run MLflow Project
         run: |
-          mkdir -p mlruns
           cd MLProject
           mlflow run . \
             --experiment-name "Iris_CI_CD_Training" \
@@ -69,17 +68,32 @@ jobs:
         id: get_run_id
         run: |
           echo "Searching for MLflow runs..."
-          find mlruns -type d | head -20
+          echo "Current directory:"
+          pwd
+          echo "Files in current directory:"
+          ls -la
+          echo "Checking for mlruns directories:"
+          find . -name "mlruns" -type d
+          echo "Contents of mlruns (if exists):"
+          find . -path "*/mlruns/*" -type d | head -30
 
-          LATEST_RUN=$(find mlruns -type d -name "20*" | sort -r | head -1)
+          # Try to find in current directory
+          LATEST_RUN=$(find . -path "*/mlruns/*/*" -type d -name "20*" 2>/dev/null | sort -r | head -1)
 
           if [ -z "$LATEST_RUN" ]; then
-            echo "No run found with pattern 20*, searching all runs..."
-            LATEST_RUN=$(find mlruns -mindepth 3 -maxdepth 3 -type d | sort -r | head -1)
+            echo "No run found with pattern 20*, searching all run directories..."
+            LATEST_RUN=$(find . -path "*/mlruns/*/*" -mindepth 0 -maxdepth 0 -type d 2>/dev/null | grep -v "meta.yaml" | sort -r | head -1)
+          fi
+
+          if [ -z "$LATEST_RUN" ]; then
+            echo "Trying alternative search pattern..."
+            LATEST_RUN=$(find . -type f -name "*.pkl" 2>/dev/null | head -1 | xargs dirname | xargs dirname 2>/dev/null)
           fi
 
           if [ -z "$LATEST_RUN" ]; then
             echo "Error: No MLflow run directory found!"
+            echo "Directory structure:"
+            find . -type d | head -50
             exit 1
           fi
 
