@@ -68,8 +68,22 @@ jobs:
       - name: Get latest MLflow run_id
         id: get_run_id
         run: |
+          echo "Searching for MLflow runs..."
+          find mlruns -type d | head -20
+
           LATEST_RUN=$(find mlruns -type d -name "20*" | sort -r | head -1)
-          RUN_ID=$(basename $LATEST_RUN)
+
+          if [ -z "$LATEST_RUN" ]; then
+            echo "No run found with pattern 20*, searching all runs..."
+            LATEST_RUN=$(find mlruns -mindepth 3 -maxdepth 3 -type d | sort -r | head -1)
+          fi
+
+          if [ -z "$LATEST_RUN" ]; then
+            echo "Error: No MLflow run directory found!"
+            exit 1
+          fi
+
+          RUN_ID=$(basename "$LATEST_RUN")
           echo "Latest Run ID: $RUN_ID"
           echo "Latest Run Path: $LATEST_RUN"
           echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
