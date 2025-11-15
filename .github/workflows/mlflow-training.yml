@@ -23,37 +23,41 @@ on:
         default: '10'
 
 jobs:
-  train-model:
+  train-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set up Python 3.12.7
         uses: actions/setup-python@v5
         with:
           python-version: '3.12.7'
 
-      - name: Install system dependencies
+      - name: Check Env
         run: |
-          sudo apt-get update
-          sudo apt-get install -y graphviz
+          echo "Python version:"
+          python --version
+          echo "Pip version:"
+          pip --version
+          echo "Working directory:"
+          pwd
+          echo "Repository structure:"
+          ls -la
 
-      - name: Install MLflow and dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          sudo apt-get update
+          sudo apt-get install -y graphviz
           pip install mlflow==2.19.0 pandas numpy scikit-learn matplotlib seaborn
-
-      - name: Set up MLflow tracking
-        run: |
-          mkdir -p mlruns
-          echo "MLflow tracking directory created"
 
       - name: Run MLflow Project
         run: |
+          mkdir -p mlruns
           cd MLProject
           mlflow run . \
             --experiment-name "Iris_CI_CD_Training" \
@@ -61,160 +65,75 @@ jobs:
             -P n_estimators=${{ github.event.inputs.n_estimators || 100 }} \
             -P max_depth=${{ github.event.inputs.max_depth || 10 }}
 
-      - name: List MLflow artifacts
+      - name: Get latest MLflow run_id
+        id: get_run_id
         run: |
-          echo "Listing MLflow runs and artifacts..."
-          find mlruns -type f -name "*.pkl" -o -name "*.png" -o -name "*.json" | head -20
-
-      - name: Collect model artifacts
-        run: |
-          mkdir -p artifacts
-          # Find the latest run directory
           LATEST_RUN=$(find mlruns -type d -name "20*" | sort -r | head -1)
-          echo "Latest run: $LATEST_RUN"
+          RUN_ID=$(basename $LATEST_RUN)
+          echo "Latest Run ID: $RUN_ID"
+          echo "Latest Run Path: $LATEST_RUN"
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "run_path=$LATEST_RUN" >> $GITHUB_OUTPUT
 
-          if [ -d "$LATEST_RUN" ]; then
-            cp -r "$LATEST_RUN"/* artifacts/ || true
-            echo "✓ Artifacts collected from: $LATEST_RUN"
-          fi
+      - name: Install Python dependencies
+        run: |
+          pip install docker
 
-      - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v4
-        with:
-          name: model-artifacts-${{ github.run_number }}
-          path: artifacts/
-          retention-days: 90
-
-      - name: Prepare artifacts for commit
+      - name: Upload to Github Repository
         run: |
           mkdir -p model_artifacts
-          LATEST_RUN=$(find mlruns -type d -name "20*" | sort -r | head -1)
+          LATEST_RUN="${{ steps.get_run_id.outputs.run_path }}"
 
           if [ -d "$LATEST_RUN/artifacts" ]; then
             cp -r "$LATEST_RUN"/artifacts/* model_artifacts/ || true
-            # Create metadata
-            echo "Run ID: $(basename $LATEST_RUN)" > model_artifacts/run_info.txt
+            echo "Run ID: ${{ steps.get_run_id.outputs.run_id }}" > model_artifacts/run_info.txt
             echo "Timestamp: $(date)" >> model_artifacts/run_info.txt
             echo "Commit: ${{ github.sha }}" >> model_artifacts/run_info.txt
           fi
 
-      - name: Commit artifacts to repository
-        run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add model_artifacts/ || true
           git diff --staged --quiet || git commit -m "Add model artifacts from run #${{ github.run_number }} [automated]"
+          git push
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-
-  build-docker:
-    needs: train-model
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12.7'
-
-      - name: Install MLflow
+      - name: Build Docker Model
         run: |
-          pip install mlflow==2.19.0
+          cd MLProject
+          docker build -t iris-mlops-ci:latest -f- . <<EOF
+          FROM python:3.12.7-slim
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+          WORKDIR /app
 
-      - name: Login to Docker Hub
+          COPY conda.yaml .
+          RUN pip install --no-cache-dir pandas==2.3.3 numpy==2.3.4 \
+              scikit-learn==1.5.0 mlflow==2.19.0 matplotlib==3.9.0 seaborn==0.13.2
+
+          COPY . .
+
+          EXPOSE 5000
+
+          CMD ["mlflow", "run", ".", "--no-conda"]
+          EOF
+
+      - name: Log in to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image using MLflow
-        run: |
-          cd MLProject
-          # Use mlflow build-docker to create image
-          mlflow models build-docker \
-            -m "runs:/<RUN_ID>/model" \
-            -n "iris-mlops-model" \
-            --enable-mlserver || echo "Building base image instead..."
-
-          # Alternative: Build simple Docker image for the project
-          docker build -t iris-mlops-ci:latest -f- . <<EOF
-          FROM python:3.12.7-slim
-
-          WORKDIR /app
-
-          # Install dependencies
-          COPY conda.yaml .
-          RUN pip install --no-cache-dir pandas==2.3.3 numpy==2.3.4 \
-              scikit-learn==1.5.0 mlflow==2.19.0 matplotlib==3.9.0 seaborn==0.13.2
-
-          # Copy project files
-          COPY . .
-
-          # Expose MLflow port
-          EXPOSE 5000
-
-          # Run MLflow project
-          CMD ["mlflow", "run", ".", "--no-conda"]
-          EOF
-
       - name: Tag Docker image
         if: github.event_name != 'pull_request'
         run: |
-          # Tag with version and latest
           docker tag iris-mlops-ci:latest ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest
           docker tag iris-mlops-ci:latest ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}
 
-      - name: Push Docker image to Docker Hub
+      - name: Push Docker image
         if: github.event_name != 'pull_request'
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}
-
-          echo "✅ Docker image pushed successfully!"
+          echo "Docker image pushed successfully!"
           echo "Image: ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest"
           echo "Image: ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}"
-
-      - name: Docker image info
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "### Docker Image Published :whale:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Images:**" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Pull command:**" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-  summary:
-    needs: [train-model, build-docker]
-    runs-on: ubuntu-latest
-    if: always()
-
-    steps:
-      - name: Workflow Summary
-        run: |
-          echo "### CI/CD Pipeline Summary :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Model Training: ${{ needs.train-model.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Docker Build: ${{ needs.build-docker.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Run Information:**" >> $GITHUB_STEP_SUMMARY
-          echo "- Run Number: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
