@@ -15,6 +15,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import mlflow
 import mlflow.sklearn
+import argparse
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -47,7 +48,7 @@ def prepare_features_target(df):
     return X, y
 
 
-def train_model_with_autolog(X_train, X_test, y_train, y_test):
+def train_model_with_autolog(X_train, X_test, y_train, y_test, n_estimators=100, max_depth=10, min_samples_split=2):
     """
     Train Random Forest model with MLflow autolog
 
@@ -66,8 +67,9 @@ def train_model_with_autolog(X_train, X_test, y_train, y_test):
     with mlflow.start_run(run_name="RandomForest_Autolog"):
         # Create and train model
         model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=10,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
             random_state=42,
             n_jobs=-1
         )
@@ -99,30 +101,51 @@ def train_model_with_autolog(X_train, X_test, y_train, y_test):
 
 
 def main():
-    """Main function"""
-    # Set MLflow tracking URI (local)
-    mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    mlflow.set_experiment("Iris_Classification_Basic")
+    """Main function with argument parsing for MLflow Project"""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Train Iris classification model')
+    parser.add_argument('--data-path', type=str, default='iris_preprocessing.csv',
+                       help='Path to preprocessed dataset')
+    parser.add_argument('--n-estimators', type=int, default=100,
+                       help='Number of trees in random forest')
+    parser.add_argument('--max-depth', type=int, default=10,
+                       help='Maximum depth of trees')
+    parser.add_argument('--min-samples-split', type=int, default=2,
+                       help='Minimum samples required to split')
+    parser.add_argument('--test-size', type=float, default=0.2,
+                       help='Test set size (0.0 to 1.0)')
+    parser.add_argument('--random-state', type=int, default=42,
+                       help='Random state for reproducibility')
 
-    print(f"MLflow Tracking URI: {mlflow.get_tracking_uri()}")
-    print(f"Experiment: Iris_Classification_Basic")
+    args = parser.parse_args()
+
+    # Set MLflow experiment
+    mlflow.set_experiment("Iris_CI_CD_Training")
+
+    print(f"Experiment: Iris_CI_CD_Training")
+    print(f"Parameters: n_estimators={args.n_estimators}, max_depth={args.max_depth}, min_samples_split={args.min_samples_split}")
 
     # Load data
-    df = load_preprocessed_data('iris_preprocessing.csv')
+    df = load_preprocessed_data(args.data_path)
 
     # Prepare features and target
     X, y = prepare_features_target(df)
 
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+        X, y, test_size=args.test_size, random_state=args.random_state, stratify=y
     )
 
     print(f"\nTraining set: {X_train.shape[0]} samples")
     print(f"Testing set:  {X_test.shape[0]} samples")
 
     # Train model with autolog
-    model = train_model_with_autolog(X_train, X_test, y_train, y_test)
+    model = train_model_with_autolog(
+        X_train, X_test, y_train, y_test,
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_split=args.min_samples_split
+    )
 
 
 if __name__ == "__main__":
