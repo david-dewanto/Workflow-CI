@@ -1,0 +1,23 @@
+Docker Hub Image Link (untuk Advanced level - Kriteria 3)
+==========================================================
+
+TODO: Setelah workflow CI/CD berhasil build dan push Docker image,
+masukkan link Docker Hub image Anda di bawah ini:
+
+Docker Hub Image: https://hub.docker.com/r/[your-username]/[image-name]
+
+Instruksi:
+1. Buat akun Docker Hub di https://hub.docker.com
+2. Buat repository baru untuk image
+3. Buat GitHub Secret:
+   - DOCKER_USERNAME: username Docker Hub Anda
+   - DOCKER_PASSWORD: password atau access token Docker Hub
+4. Push code ke GitHub
+5. Workflow akan otomatis build dan push image
+6. Update file ini dengan link Docker Hub image Anda
+
+Cara pull dan run image:
+```bash
+docker pull [your-username]/[image-name]:latest
+docker run -p 5000:5000 [your-username]/[image-name]:latest
+```
