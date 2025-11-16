@@ -2,4 +2,4 @@ Nama : David Dewanto
 Email Dicoding : david.dewanto@gmail.com
 
 URL Docker Hub :
-https://hub.docker.com/r/daviddewanto/iris-mlops-ci
+https://hub.docker.com/r/daviddewanto/transactions-mlops-ci
