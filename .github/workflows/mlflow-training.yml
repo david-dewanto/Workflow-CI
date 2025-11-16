@@ -59,7 +59,7 @@ jobs:
         run: |
           cd MLProject
           mlflow run . \
-            --experiment-name "Iris_CI_CD_Training" \
+            --experiment-name "Transactions_CI_CD_Training" \
             --env-manager=local \
             -P n_estimators=${{ github.event.inputs.n_estimators || 100 }} \
             -P max_depth=${{ github.event.inputs.max_depth || 10 }}
@@ -128,7 +128,7 @@ jobs:
       - name: Build Docker Model
         run: |
           cd MLProject
-          docker build -t iris-mlops-ci:latest -f- . <<EOF
+          docker build -t transactions-mlops-ci:latest -f- . <<EOF
           FROM python:3.12.7-slim
 
           WORKDIR /app
@@ -154,14 +154,14 @@ jobs:
       - name: Tag Docker image
         if: github.event_name != 'pull_request'
         run: |
-          docker tag iris-mlops-ci:latest ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest
-          docker tag iris-mlops-ci:latest ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}
+          docker tag transactions-mlops-ci:latest ${{ secrets.DOCKER_USERNAME }}/transactions-mlops-ci:latest
+          docker tag transactions-mlops-ci:latest ${{ secrets.DOCKER_USERNAME }}/transactions-mlops-ci:v${{ github.run_number }}
 
       - name: Push Docker image
         if: github.event_name != 'pull_request'
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/transactions-mlops-ci:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/transactions-mlops-ci:v${{ github.run_number }}
           echo "Docker image pushed successfully!"
-          echo "Image: ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:latest"
-          echo "Image: ${{ secrets.DOCKER_USERNAME }}/iris-mlops-ci:v${{ github.run_number }}"
+          echo "Image: ${{ secrets.DOCKER_USERNAME }}/transactions-mlops-ci:latest"
+          echo "Image: ${{ secrets.DOCKER_USERNAME }}/transactions-mlops-ci:v${{ github.run_number }}"

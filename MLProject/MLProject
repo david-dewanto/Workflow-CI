@@ -1,11 +1,11 @@
-name: Iris_Classification_MLProject
+name: Transactions_Classification_MLProject
 
 conda_env: conda.yaml
 
 entry_points:
   main:
     parameters:
-      data_path: {type: string, default: "iris_preprocessing.csv"}
+      data_path: {type: string, default: "transactions_preprocessing.csv"}
       n_estimators: {type: int, default: 100}
       max_depth: {type: int, default: 10}
       min_samples_split: {type: int, default: 2}
@@ -15,12 +15,12 @@ entry_points:
 
   train_default:
     parameters:
-      data_path: {type: string, default: "iris_preprocessing.csv"}
+      data_path: {type: string, default: "transactions_preprocessing.csv"}
     command: "python modelling.py --data-path {data_path}"
 
   train_custom:
     parameters:
-      data_path: {type: string, default: "iris_preprocessing.csv"}
+      data_path: {type: string, default: "transactions_preprocessing.csv"}
       n_estimators: {type: int, default: 200}
       max_depth: {type: int, default: 15}
     command: "python modelling.py --data-path {data_path} --n-estimators {n_estimators} --max-depth {max_depth}"

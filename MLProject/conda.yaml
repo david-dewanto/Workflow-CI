@@ -1,4 +1,4 @@
-name: mlflow-iris-env
+name: mlflow-transactions-env
 channels:
   - conda-forge
   - defaults

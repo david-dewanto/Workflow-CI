@@ -2,7 +2,7 @@
 Basic Model Training with MLflow Autolog
 Author: David Dewanto
 
-This script trains a Random Forest Classifier on the Iris dataset
+This script trains a Random Forest Classifier on the Transactions dataset
 using MLflow autolog for automatic tracking.
 
 Target: Basic (2 pts) - Kriteria 2
@@ -20,22 +20,22 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def load_preprocessed_data(file_path='iris_preprocessing.csv'):
+def load_preprocessed_data(file_path='transactions_preprocessing.csv'):
     """Load the preprocessed dataset"""
     print(f"Loading preprocessed data from: {file_path}")
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path, encoding='utf-8')
     print(f"Data loaded. Shape: {df.shape}")
     return df
 
 
 def prepare_features_target(df):
     """Prepare features and target from preprocessed data"""
-    # Feature columns
+    # Feature columns (numerical features only, excluding categorical and identifiers)
     feature_columns = [
-        'sepal length (cm)', 'sepal width (cm)',
-        'petal length (cm)', 'petal width (cm)',
-        'sepal_area', 'petal_area',
-        'sepal_ratio', 'petal_ratio'
+        'account_age_days', 'total_transactions_user', 'avg_amount_user',
+        'amount', 'promo_used', 'avs_match', 'cvv_result', 'three_ds_flag',
+        'shipping_distance_km', 'amount_transactions_product',
+        'amount_avg_product', 'amount_avg_ratio', 'shipping_age_ratio'
     ]
 
     X = df[feature_columns]
@@ -93,7 +93,7 @@ def train_model_with_autolog(X_train, X_test, y_train, y_test, n_estimators=100,
 
         # Log additional information
         mlflow.log_param("model_type", "RandomForestClassifier")
-        mlflow.log_param("dataset", "Iris")
+        mlflow.log_param("dataset", "Transactions")
 
         print("\nModel training completed successfully.")
 
@@ -103,8 +103,8 @@ def train_model_with_autolog(X_train, X_test, y_train, y_test, n_estimators=100,
 def main():
     """Main function with argument parsing for MLflow Project"""
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Train Iris classification model')
-    parser.add_argument('--data-path', type=str, default='iris_preprocessing.csv',
+    parser = argparse.ArgumentParser(description='Train Transactions classification model')
+    parser.add_argument('--data-path', type=str, default='transactions_preprocessing.csv',
                        help='Path to preprocessed dataset')
     parser.add_argument('--n-estimators', type=int, default=100,
                        help='Number of trees in random forest')
@@ -120,9 +120,9 @@ def main():
     args = parser.parse_args()
 
     # Set MLflow experiment
-    mlflow.set_experiment("Iris_CI_CD_Training")
+    mlflow.set_experiment("Transactions_CI_CD_Training")
 
-    print(f"Experiment: Iris_CI_CD_Training")
+    print(f"Experiment: Transactions_CI_CD_Training")
     print(f"Parameters: n_estimators={args.n_estimators}, max_depth={args.max_depth}, min_samples_split={args.min_samples_split}")
 
     # Load data
