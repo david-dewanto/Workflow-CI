@@ -4,20 +4,20 @@ Repository for MLflow Project with CI/CD Pipeline
 
 ## Overview
 
-This repository contains an MLflow Project with automated CI/CD pipeline using GitHub Actions for training machine learning models on the Iris dataset.
+This repository contains an MLflow Project with automated CI/CD pipeline using GitHub Actions for training machine learning models on the Transactions dataset for fraud detection.
 
 ## Project Structure
 
 ```
 Workflow-CI/
 ├── .github/workflows/
-│   └── mlflow-training.yml    # CI/CD pipeline configuration
+│   └── mlflow-training.yml          # CI/CD pipeline configuration
 ├── MLProject/
-│   ├── MLProject              # MLflow project definition
-│   ├── conda.yaml             # Environment dependencies
-│   ├── modelling.py           # Training script
-│   ├── iris_preprocessing.csv # Preprocessed dataset
-│   └── DockerHub.txt          # Docker Hub repository link
+│   ├── MLProject                    # MLflow project definition
+│   ├── conda.yaml                   # Environment dependencies
+│   ├── modelling.py                 # Training script
+│   ├── transactions_preprocessing.csv # Preprocessed dataset
+│   └── DockerHub.txt                # Docker Hub repository link
 └── README.md
 ```
 
@@ -45,14 +45,14 @@ Workflow-CI/
 
 ```bash
 cd MLProject
-mlflow run . --experiment-name "Iris_Training"
+mlflow run . --experiment-name "Transactions_CI_CD_Training"
 ```
 
 ### Run with Custom Parameters
 
 ```bash
 mlflow run . \
-  --experiment-name "Iris_Training" \
+  --experiment-name "Transactions_CI_CD_Training" \
   -P n_estimators=200 \
   -P max_depth=15
 ```
@@ -95,23 +95,23 @@ Configure these secrets in repository settings:
 ## Model Details
 
 - Algorithm: Random Forest Classifier
-- Dataset: Iris (preprocessed with 8 features)
-- Training: 119 samples
-- Testing: 30 samples
-- Classes: 3 (setosa, versicolor, virginica)
+- Dataset: Transactions (preprocessed with 13 features)
+- Task: Binary classification (fraud detection)
+- Features: account_age_days, total_transactions_user, avg_amount_user, amount, promo_used, avs_match, cvv_result, three_ds_flag, shipping_distance_km, amount_transactions_product, amount_avg_product, amount_avg_ratio, shipping_age_ratio
+- Classes: 2 (non-fraud, fraud)
 
 ## Docker Usage
 
 Pull the Docker image:
 
 ```bash
-docker pull [username]/iris-mlops-ci:latest
+docker pull [username]/transactions-mlops-ci:latest
 ```
 
 Run the container:
 
 ```bash
-docker run -p 5000:5000 [username]/iris-mlops-ci:latest
+docker run -p 5000:5000 [username]/transactions-mlops-ci:latest
 ```
 
 ## Artifacts
